@@ -280,6 +280,31 @@ async function uploadHomework(ctx) {
   }
 }
 
+async function handlePhotoSubmission(ctx) {
+    const photo = ctx.message.photo.pop(); // Get the highest quality photo
+    const selectedTopic = ctx.session.selectedTopic;
+    const user = await User.findOne({ userId: ctx.from.id });
+  
+    try {
+      const submission = new Submissions({
+        student: ctx.from.first_name,
+        groupNumber: user.groupNumber,
+        topicTitle: selectedTopic.title,
+        // In case of photos, we only have file_id
+        fileId: photo.file_id,
+        submittedAt: new Date(),
+      });
+      await submission.save();
+  
+      await ctx.reply(
+        `MashaAlloh! Siz muvaffaqiyatli✅ vazifangizni joyladingiz: ${selectedTopic.title}`
+      );
+    } catch (error) {
+      console.error("Error saving photo submission to database:", error);
+      ctx.reply("Xatolik yuz berdi, iltimos qaytadan urinib ko'ring.");
+    }
+  }
+
 async function checkGroups(ctx) {
     try {
         // Find all unique group numbers

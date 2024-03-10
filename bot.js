@@ -129,15 +129,19 @@ const setUpBot = () => {
             await uploadHomework(ctx);
         }
     });
+    bot.on('photo', async (ctx) => {
+        if (ctx.session.awaitingFileUpload && ctx.session.selectedTopic) {
+          await handlePhotoSubmission(ctx);
+        }
+      });
     bot.action('upload_homework', async (ctx) => {
         if (ctx.session.awaitingFileUpload && ctx.session.selectedTopic) {
-            await ctx.reply('Iltimos, vazifangizni yuklang (PDF yoki DOC faylini jo\'nating):');
-            ctx.session.awaitingFileUpload = true;
+          await ctx.reply('Iltimos, vazifangizni yuklang (PDF, DOC yoki rasm faylini jo\'nating):');
+          ctx.session.awaitingFileUpload = true;
         } else {
-            await ctx.reply('Avval mavzu tanlang.');
+          await ctx.reply('Avval mavzu tanlang.');
         }
-    });
-
+      });
 
     bot.action('select_group', async (ctx) => {
         const selectedTopic = ctx.session.selectedTopic;
