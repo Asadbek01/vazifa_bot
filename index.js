@@ -21,7 +21,7 @@ async function main () {
     await setUpBot().launch();
 	const app = express();
 	// Set the bot API endpoint
-	app.use(await bot.createWebhook({ domain: 'https://vazifa-bot-nine.vercel.app/' }));
+	app.use(await bot.createWebhook({ domain: 'https://vazifa-bot-p2mz.onrender.com' }));
 	app.listen('5000', () => console.log("Listening on port", port));
 }
 
