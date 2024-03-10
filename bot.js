@@ -5,6 +5,8 @@ const { start, startRegistration, cancelRegistration, handleGroupNumber, checkGr
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 const { CMD_TEXT } = require('./config/consts.js');
 const User = require('./models/user.js');
+const Topics = require('./models/topics.js');
+
 const { Markup } = require('telegraf');
 
 
@@ -32,6 +34,18 @@ const setUpBot = () => {
         ctx.session = {addNewAdministrator: true};
         await ctx.reply('Iltimos, yangi adminning foydalanuvchi ID sini kiriting:');
     });
+
+    bot.command('editTopic', async (ctx) => {
+        const user = await User.findOne({ userId: ctx.from.id });
+        if (!user || !user.isAdmin) {
+            await ctx.reply('Sizda mavzularni tahrirlash huquqi mavjud emas.');
+            return;
+        }
+    
+        ctx.session = {isEditingTopic: true}; // Set a flag that the admin is in the process of editing a topic
+        await displayTopics(ctx); // Display the topics to choose which one to edit
+    });
+    
     
 
     bot.hears(CMD_TEXT.register, (ctx) => startRegistration(ctx));
@@ -58,6 +72,17 @@ const setUpBot = () => {
                 const userIdToUpgrade = ctx.message.text.trim();
                 await addNewAdministrator(ctx, userIdToUpgrade);
                 ctx.session.addNewAdministrator = false;
+        }else  if (ctx.session.selectedTopicForEditing) {
+            const newTitle = ctx.message.text;
+            const selectedTopic = ctx.session.selectedTopicForEditing;
+            
+            // Update the topic in the database
+            await Topics.updateOne({ _id: selectedTopic._id }, { $set: { title: newTitle } });
+            await ctx.reply(`Mavzu "${selectedTopic.title}" yangi nomi bilan yangilandi: "${newTitle}"`);
+    
+            // Reset the session state
+            ctx.session.selectedTopicForEditing = null;
+            ctx.session.isEditingTopic = false;
         }
     });
 
@@ -226,7 +251,26 @@ const setUpBot = () => {
 
 
    
+    bot.action(/^select_(\d+)$/, async (ctx) => {
+        if(ctx.session.awaitingTopicSelection === true) {
+            await selectTopic(ctx);
+        } else if (ctx.session.isEditingTopic === true) {
+            // await selectTopicForEditing(ctx);
+        }
+    });
     
+    // async function selectTopicForEditing(ctx) {
+    //     const selectedNumber = parseInt(ctx.match[1].split('_')[1]);
+    //     const topics = await Topics.find({});
+    //     const selectedTopic = topics[selectedNumber - 1];
+    
+    //     if (selectedTopic) {
+    //         ctx.session.selectedTopicForEditing = selectedTopic;
+    //         await ctx.reply(`You have selected "${selectedTopic.title}". Please enter the new title for this topic:`);
+    //     } else {
+    //         await ctx.reply('Mavzu tanlanmadi.');
+    //     }
+    // }
 
     return bot;
 }

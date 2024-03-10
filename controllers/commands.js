@@ -338,10 +338,6 @@ async function displayHomeworksForTopicAndGroup(ctx, topicTitle, groupNumber) {
 
 
 
-//  here Admin should be able to addNew Administrators
-
-
-
 
 module.exports = { start, startRegistration, cancelRegistration, handleGroupNumber, checkGroup, 
     addTheme, handleTopic, displayTopics, selectTopic, uploadHomework, restart, checkGroups,
