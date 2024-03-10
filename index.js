@@ -18,7 +18,7 @@ async function main () {
         useNewUrlParser: true,
         useUnifiedTopology: true
     });
-    // await setUpBot().launch();
+    await setUpBot().launch();
 	const app = express();
 	// Set the bot API endpoint
 	app.use(await bot.createWebhook({ domain: 'https://vazifa-bot-dug1.onrender.com' }));
