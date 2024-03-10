@@ -1,38 +1,33 @@
 require('dotenv').config({path: './config/.env'});
 const mongoose = require('mongoose');
 const { setUpBot } = require('./bot.js');
+const express = require('express');
 
-async function connectDB() {
+(async function () {
+    try {
+  
+    } catch (error) {
+        
+    }    
+}())
+
+
+
+async function main () {
     await mongoose.connect(process.env.MONGO_URI, { 
         useNewUrlParser: true,
         useUnifiedTopology: true
     });
-    console.log('Connected to MongoDB');
+    // await setUpBot().launch();
+	const app = express();
+	// Set the bot API endpoint
+	app.use(await bot.createWebhook({ domain: '' }));
+	app.listen('5000', () => console.log("Listening on port", port));
 }
 
-async function startBot() {
-    await connectDB(); // Ensure DB is connected
-    const bot = await setUpBot();
-    await bot.launch(); // Polling mode for local development
-    console.log('Bot launched in polling mode.');
-}
+main();
 
-// This checks if the file is being run directly in Node, which is true for local development
-if (require.main === module) {
-    startBot();
-} else {
-    // Export the handler for serverless function (Vercel, AWS Lambda, etc.)
-    module.exports = async (req, res) => {
-        await connectDB(); // Ensure DB is connected
 
-        const bot = await setUpBot();
-        
-        if (req.method === 'POST') {
-            const update = req.body;
-            await bot.handleUpdate(update);
-            res.status(200).send({ status: 'ok' });
-        } else {
-            res.status(200).send('Telegram bot is running');
-        }
-    };
-}
+
+
+
