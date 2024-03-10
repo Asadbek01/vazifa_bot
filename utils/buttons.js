@@ -26,7 +26,7 @@ async function generateMainMenu(ctx) {
     } else if (ctx.session.isAuth && ctx.session.isAdmin) {
         const adminButtons = [
             [CMD_TEXT.addTheme, CMD_TEXT.getHomeworks],
-            [CMD_TEXT.checkGroups, CMD_TEXT.editTheme]
+            [CMD_TEXT.checkGroups]
         ];
         keyboard.push(...adminButtons);
     } 

@@ -35,7 +35,7 @@ const setUpBot = () => {
         await ctx.reply('Iltimos, yangi adminning foydalanuvchi ID sini kiriting:');
     });
 
-    bot.command('editTopic', async (ctx) => {
+    bot.command('edit', async (ctx) => {
         const user = await User.findOne({ userId: ctx.from.id });
         if (!user || !user.isAdmin) {
             await ctx.reply('Sizda mavzularni tahrirlash huquqi mavjud emas.');
