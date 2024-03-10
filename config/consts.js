@@ -8,6 +8,7 @@ const CMD_TEXT = {
     getHomeworks: 'Vazifalarni olish',
     checkGroup: 'Guruhni tekshiring',
     checkGroups: 'Guruhlarni tekshiring',
+    editTheme: 'Mavzuni tahrirlash',
 } 
 
 module.exports = { CMD_TEXT }; 
