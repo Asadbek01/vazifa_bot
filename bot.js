@@ -1,7 +1,7 @@
 const { Telegraf, session } = require('telegraf');
-const { start, startRegistration, cancelRegistration, handleGroupNumber, checkGroup,
+const { start, startRegistration, handleGroupNumber, checkGroup,
     addTheme, handleTopic, displayTopics, selectTopic, uploadHomework, restart, checkGroups, getStudentsHomeworksByTopicAndGroup,
-    displayHomeworksForTopicAndGroup} = require('./controllers/commands.js');
+    displayHomeworksForTopicAndGroup, handleEditTopicTitle} = require('./controllers/commands.js');
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 const { CMD_TEXT } = require('./config/consts.js');
 const User = require('./models/user.js');
@@ -16,11 +16,9 @@ const setUpBot = () => {
     bot.use((ctx, next) => {
         return next();
     });
-   
     
     bot.command("start", start); 
     bot.command("register", startRegistration); 
-    bot.command("cancel", cancelRegistration); 
     bot.command("checkGroup", checkGroup);
     bot.command("addTheme", addTheme);
     bot.command("restart", restart);
@@ -42,19 +40,18 @@ const setUpBot = () => {
             return;
         }
     
-        ctx.session = {isEditingTopic: true}; // Set a flag that the admin is in the process of editing a topic
-        await displayTopics(ctx); // Display the topics to choose which one to edit
+        ctx.session = {isEditingTopic: true}; 
+        await displayTopics(ctx); 
     });
     
     
 
     bot.hears(CMD_TEXT.register, (ctx) => startRegistration(ctx));
     bot.hears(CMD_TEXT.checkGroup, (ctx) => checkGroups(ctx));
-    bot.hears(CMD_TEXT.chooseTopic, (ctx) => displayTopics(ctx));
+    bot.hears(CMD_TEXT.chooseTopic, (ctx) => chooseTopic(ctx));
     bot.hears(CMD_TEXT.restart, (ctx) => restart(ctx));
     bot.hears(CMD_TEXT.updateYourGroup, (ctx) => startRegistration(ctx));
-    
-    
+        
     bot.hears(CMD_TEXT.checkGroups, (ctx) => checkGroups(ctx));
     bot.hears(CMD_TEXT.addTheme, (ctx) => addTheme(ctx));
     bot.hears(CMD_TEXT.getHomeworks, (ctx) => getStudentsHomeworksByTopicAndGroup(ctx));
@@ -72,17 +69,9 @@ const setUpBot = () => {
                 const userIdToUpgrade = ctx.message.text.trim();
                 await addNewAdministrator(ctx, userIdToUpgrade);
                 ctx.session.addNewAdministrator = false;
-        }else  if (ctx.session.selectedTopicForEditing) {
-            const newTitle = ctx.message.text;
-            const selectedTopic = ctx.session.selectedTopicForEditing;
-            
-            // Update the topic in the database
-            await Topics.updateOne({ _id: selectedTopic._id }, { $set: { title: newTitle } });
-            await ctx.reply(`Mavzu "${selectedTopic.title}" yangi nomi bilan yangilandi: "${newTitle}"`);
-    
-            // Reset the session state
-            ctx.session.selectedTopicForEditing = null;
-            ctx.session.isEditingTopic = false;
+        }else  if (ctx.session.topicId) {
+            console.log(ctx.session);
+             await handleEditTopicTitle(ctx, ctx.session.topicId);
         }
     });
 
@@ -103,10 +92,20 @@ const setUpBot = () => {
         await ctx.reply(`${userIdToUpgrade} ID li foydalanuvchi endi admin.`);
     }
 
+    async function chooseTopic(ctx) {
+         ctx.session = {awaitingTopicSelection: true} 
+         await displayTopics(ctx);
+        }
+
     bot.action(/^select_(\d+)$/, async (ctx) => {
+        console.log(ctx.session);
         if(ctx.session.awaitingTopicSelection === true) {
             await selectTopic(ctx);
-        } 
+        } else if(ctx.session.awaitingTopicSelectionForCheckingHomeworks === true) {
+            await selectTopic(ctx);
+        } else if(ctx.session.isEditingTopic === true) {
+            await selectTopic(ctx);
+        }
     });
 
     bot.action(/^page_(\d+)$/, async (ctx) => {
@@ -131,7 +130,7 @@ const setUpBot = () => {
     });
     bot.on('photo', async (ctx) => {
         if (ctx.session.awaitingFileUpload && ctx.session.selectedTopic) {
-          await handlePhotoSubmission(ctx);
+          await uploadHomework(ctx);
         }
       });
     bot.action('upload_homework', async (ctx) => {
@@ -141,6 +140,15 @@ const setUpBot = () => {
         } else {
           await ctx.reply('Avval mavzu tanlang.');
         }
+      });
+      bot.action('edit_topic', async (ctx) => {
+        const selectedTopic = ctx.session.selectedTopicForEditing;
+        if (ctx.session.isEditingTopic && ctx.session.selectedTopicForEditing) {
+            ctx.session = { isAdminEditingTopic: true }
+            ctx.session = {topicId: selectedTopic.topicId};
+            await ctx.reply("Mavzuni tahrirlashingiz mumkin. Iltimos, yangi mavzu nomini kiriting!");
+        }
+        console.log(ctx.session);
       });
 
     bot.action('select_group', async (ctx) => {
@@ -238,8 +246,6 @@ const setUpBot = () => {
         // Update the message with the new page of groups
         await ctx.editMessageText(messageText, { reply_markup: inlineKeyboard });
     });
-    
-    
 
     bot.action('restart', async (ctx) => {
         ctx.session = {}; 
@@ -247,34 +253,14 @@ const setUpBot = () => {
     });
 
     bot.action('display_topics', async (ctx) => {
-        await displayTopics(ctx);
-        ctx.answerCbQuery();
-    });
-
-     
-
-
-   
-    bot.action(/^select_(\d+)$/, async (ctx) => {
-        if(ctx.session.awaitingTopicSelection === true) {
-            await selectTopic(ctx);
-        } else if (ctx.session.isEditingTopic === true) {
-            // await selectTopicForEditing(ctx);
+        if (ctx.session.awaitingTopicSelectionForCheckingHomeworks === true) {
+            await displayTopics(ctx);
+            ctx.answerCbQuery();
         }
     });
+
     
-    // async function selectTopicForEditing(ctx) {
-    //     const selectedNumber = parseInt(ctx.match[1].split('_')[1]);
-    //     const topics = await Topics.find({});
-    //     const selectedTopic = topics[selectedNumber - 1];
-    
-    //     if (selectedTopic) {
-    //         ctx.session.selectedTopicForEditing = selectedTopic;
-    //         await ctx.reply(`You have selected "${selectedTopic.title}". Please enter the new title for this topic:`);
-    //     } else {
-    //         await ctx.reply('Mavzu tanlanmadi.');
-    //     }
-    // }
+
 
     return bot;
 }

@@ -23,12 +23,6 @@ const startRegistration = async ctx => {
     }
 };
 
-const cancelRegistration = ctx => {
-    ctx.session = { registrationState: false };
-    const chatId = ctx.chat.id;
-    ctx.reply('Ro`yxatdan o`tish bekor qilindi.');
-};
-
 const restart = async ctx => {
     const mainMenuKeyboard =  await generateMainMenu(ctx);
     ctx.session = { registrationState: false };
@@ -80,6 +74,27 @@ const handleGroupNumber = async (ctx, next) => {
         console.error('Error handling group number:', error);
     }
 };
+
+const handleEditTopicTitle = async (ctx, topicId) => {
+    const chatId = ctx.chat.id;
+    const newTitle = ctx.message.text.trim();
+    try {
+    let existingTopic =  await Topics.findOne({ topicId });
+    if (existingTopic) {
+        existingTopic.title = newTitle;
+        await existingTopic.save();
+        const mainMenuKeyboard =  await generateMainMenu(ctx);
+        ctx.reply("Mavzuni tahrirlash muvaffaqiyatli yangilandi!", {
+          ...mainMenuKeyboard
+        });
+        await sendTopicDetails(ctx, existingTopic);
+    }
+    } catch (error) {
+         console.error('Error handling edit topic title:', error);
+    }
+    ctx.session = {};
+}
+
 
 const checkGroup = async (ctx) => {
     try {
@@ -161,8 +176,8 @@ const getTopics = async () => {
 const ITEMS_PER_PAGE = 10;
 const CLOSE_COMMAND = 'close';
 
-const displayTopics = async (ctx, currentPage = 0) => {
-    ctx.session = { awaitingTopicSelection: true };
+async function displayTopics (ctx, currentPage = 0) {
+    
     try {
         const topics = await Topics.find({});
         const pageCount = Math.ceil(topics.length / ITEMS_PER_PAGE);
@@ -177,7 +192,6 @@ const displayTopics = async (ctx, currentPage = 0) => {
         });
         
         await ctx.reply(messageText);
-        ctx.session.lastTopicMessageId = messageText.message_id;
         
         let keyboardInline = pageTopics.map((_, index) => {
             const buttonNumber = index + 1 + currentPage * ITEMS_PER_PAGE;
@@ -217,6 +231,8 @@ function chunkArray(array, size) {
 
 
 async function selectTopic(ctx) {
+    // console.log(ctx.session);
+
     const selectedNumber = parseInt(ctx.match[1]);
     // Fetch topics from the database
     const topics = await Topics.find({});
@@ -226,84 +242,85 @@ async function selectTopic(ctx) {
         await ctx.reply('Siz tanlagan mavzu hozirda mavjud emas.');
         return;
     }
-
     const user = await User.findOne({ userId: ctx.from.id });
-    if (user && user.isAdmin) {
+    if (user && user.isAdmin && ctx.session.awaitingTopicSelectionForCheckingHomeworks) {
         ctx.session.selectedTopic = selectedTopic.title; // Store selected topic for further actions
         await ctx.reply(`Siz tanlagan mavzu: ${selectedTopic.title}. Iltimos, guruh raqamini kiriting:`,
-            Markup.inlineKeyboard([
-                Markup.button.callback('Guruhni tanlang', 'select_group')
-            ])
+        Markup.inlineKeyboard([
+            Markup.button.callback('Guruhni tanlang', 'select_group')
+        ])
         );
-    } else {
+    } else if ( user && user.isAdmin && ctx.session.isEditingTopic) {
+        ctx.session.selectedTopicForEditing = selectedTopic; // Store selected topic for further actions
+        await ctx.reply(`Siz tanlagan mavzu: ${selectedTopic.title}.`,
+        Markup.inlineKeyboard([
+            Markup.button.callback('Mavzuni tahrirlang', 'edit_topic')
+        ])
+        );
+        // console.log(ctx.session);
+    } else{
         // Regular user interaction
         ctx.session.selectedTopic = selectedTopic;
         ctx.session.awaitingFileUpload = true;
         await ctx.reply(`Siz tanlagan mavzu: ${selectedTopic.title}.`,
-            Markup.inlineKeyboard([
-                Markup.button.callback('Vazifani yuklash', 'upload_homework') // Button for uploading homework
-            ])
+        Markup.inlineKeyboard([
+            Markup.button.callback('Vazifani yuklash', 'upload_homework') // Button for uploading homework
+        ])
         );
     }
 
     // Reset session states accordingly
+    ctx.session.awaitingTopicSelectionForCheckingHomeworks = false;
     ctx.session.awaitingTopicSelection = false;
 }
 
 
 
-
 async function uploadHomework(ctx) {
-  if (ctx.session.awaitingFileUpload && ctx.session.selectedTopic) {
-    const document = ctx.message.document;
-    const selectedTopic = ctx.session.selectedTopic;
-    const user = await User.findOne({ userId: ctx.from.id });
-    try {
-      const submission = new Submissions({
-        student: ctx.from.first_name,
-        groupNumber: user.groupNumber,
-        topicTitle: selectedTopic.title,
-        file: ctx.message.document,
-        fileName: ctx.message.document.file_name,
-        fileId: ctx.message.document.file_id,
-        submittedAt: new Date(),
-      });
-      await submission.save();
+    if (ctx.session.awaitingFileUpload && ctx.session.selectedTopic) {
+        const selectedTopic = ctx.session.selectedTopic;
+        const user = await User.findOne({ userId: ctx.from.id });
 
-      await ctx.reply(
-        `MashaAlloh! Siz muvaffaqiyatli✅ vazifalaringizni joyladingiz: ${selectedTopic.title}`
-      );
-    } catch (error) {
-      console.error("Error saving submission to database:", error);
-      ctx.reply("Xatolik yuz berdi, iltimos qaytadan urinib ko'ring.");
+        if (!user) {
+            await ctx.reply('Sizning profilingiz topilmadi, iltimos ro\'yxatdan o\'ting.');
+            return;
+        }
+
+        let file, fileName, fileId;
+        if (ctx.message.document) {
+            file = ctx.message.document;
+            fileName = file.file_name;
+            fileId = file.file_id;
+        } else if (ctx.message.photo) {
+            const photoSizes = ctx.message.photo;
+            const largestPhoto = photoSizes[photoSizes.length - 1];
+            file = largestPhoto;
+            fileName = `${ctx.from.username || ctx.from.id}_${Date.now()}.jpg`;  // A generic file name
+            fileId = largestPhoto.file_id;
+        }
+
+        try {
+            const submission = new Submissions({
+                student: ctx.from.first_name || 'Unknown', // Fallback to 'Unknown' if first name is not set
+                groupNumber: user.groupNumber,
+                topicTitle: selectedTopic.title,
+                file: file,
+                fileName: fileName,
+                fileId: fileId,
+                submittedAt: new Date(),
+            });
+            await submission.save();
+
+            await ctx.reply(`MashaAlloh! Siz muvaffaqiyatli✅ vazifalaringizni joyladingiz: ${selectedTopic.title}`);
+        } catch (error) {
+            console.error("Error saving submission to database:", error);
+            ctx.reply("Xatolik yuz berdi, iltimos qaytadan urinib ko'ring.");
+        }
     }
-  }
 }
 
-async function handlePhotoSubmission(ctx) {
-    const photo = ctx.message.photo.pop(); // Get the highest quality photo
-    const selectedTopic = ctx.session.selectedTopic;
-    const user = await User.findOne({ userId: ctx.from.id });
-  
-    try {
-      const submission = new Submissions({
-        student: ctx.from.first_name,
-        groupNumber: user.groupNumber,
-        topicTitle: selectedTopic.title,
-        // In case of photos, we only have file_id
-        fileId: photo.file_id,
-        submittedAt: new Date(),
-      });
-      await submission.save();
-  
-      await ctx.reply(
-        `MashaAlloh! Siz muvaffaqiyatli✅ vazifangizni joyladingiz: ${selectedTopic.title}`
-      );
-    } catch (error) {
-      console.error("Error saving photo submission to database:", error);
-      ctx.reply("Xatolik yuz berdi, iltimos qaytadan urinib ko'ring.");
-    }
-  }
+
+
 
 async function checkGroups(ctx) {
     try {
@@ -329,12 +346,11 @@ async function checkGroups(ctx) {
 }
 
 async function getStudentsHomeworksByTopicAndGroup(ctx) {
-     ctx.session = { isAdminSelectingTitle: true };
+     ctx.session = { awaitingTopicSelectionForCheckingHomeworks: true };
     const message = 'Uyga vazifalarni mavzu bilan olish uchun👇';
     const topicSelectionButton = Markup.inlineKeyboard([
-        Markup.button.callback('Mavzular', 'display_topics')
+        Markup.button.callback('Mavzularr', 'display_topics')
     ]);
-
     await ctx.reply(message, topicSelectionButton);
 
 }
@@ -351,9 +367,12 @@ async function displayHomeworksForTopicAndGroup(ctx, topicTitle, groupNumber) {
         }
 
         homeworks.forEach(submission => {
-            ctx.telegram.sendDocument(chatId, submission.fileId, {
-                caption: `Uyga vazifa: ${submission.topicTitle} guruh nomer: ${submission.groupNumber}`
-            });
+            const caption = `Uyga vazifa: ${submission.topicTitle} guruh nomer: ${submission.groupNumber}`;
+            if (submission.fileName && (submission.fileName.endsWith('.jpg') || submission.fileName.endsWith('.png'))) {
+                ctx.telegram.sendPhoto(chatId, submission.fileId, { caption });
+            } else {
+                ctx.telegram.sendDocument(chatId, submission.fileId, { caption });
+            }
         });
     } catch (error) {
         console.error('Error retrieving homework submissions:', error);
@@ -364,6 +383,6 @@ async function displayHomeworksForTopicAndGroup(ctx, topicTitle, groupNumber) {
 
 
 
-module.exports = { start, startRegistration, cancelRegistration, handleGroupNumber, checkGroup, 
+module.exports = { start, startRegistration, handleGroupNumber, checkGroup, 
     addTheme, handleTopic, displayTopics, selectTopic, uploadHomework, restart, checkGroups,
-    displayHomeworksForTopicAndGroup, getStudentsHomeworksByTopicAndGroup };
+    displayHomeworksForTopicAndGroup, getStudentsHomeworksByTopicAndGroup, handleEditTopicTitle };
