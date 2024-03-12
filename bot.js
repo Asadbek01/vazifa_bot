@@ -62,19 +62,29 @@ const setUpBot = () => {
         if (Object.values(CMD_TEXT).includes(textCommand)) {
             return;
         }
+        
+        // Ensure ctx.session is defined
+        if (!ctx.session) {
+            ctx.session = {};
+        }
+    
         if (ctx.session.registrationState === true) {
             await handleGroupNumber(ctx);
-        }else if (ctx.session.isAddingTheme === true) {
+        } else if (ctx.session.isAddingTheme === true) {
             await handleTopic(ctx);
-        }else if (ctx.session.addNewAdministrator) {
-                const userIdToUpgrade = ctx.message.text.trim();
-                await addNewAdministrator(ctx, userIdToUpgrade);
-                ctx.session.addNewAdministrator = false;
-        }else  if (ctx.session.topicId) {
+        } else if (ctx.session.addNewAdministrator) {
+            const userIdToUpgrade = ctx.message.text.trim();
+            await addNewAdministrator(ctx, userIdToUpgrade);
+            ctx.session.addNewAdministrator = false;
+        } else if (ctx.session.topicId) {
             console.log(ctx.session);
-             await handleEditTopicTitle(ctx, ctx.session.topicId);
+            await handleEditTopicTitle(ctx, ctx.session.topicId);
+        } else {
+            // Inform the user about the technical issue in Uzbek
+            await ctx.reply('Afsus, bir muammo yuz berdi. Iltimos, keyinroq urinib ko\'ring.');
         }
     });
+    
 
     async function addNewAdministrator(ctx, userIdToUpgrade) {
         const user = await User.find({});
