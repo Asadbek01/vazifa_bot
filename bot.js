@@ -97,16 +97,22 @@ const setUpBot = () => {
          await displayTopics(ctx);
         }
 
-    bot.action(/^select_(\d+)$/, async (ctx) => {
-        console.log(ctx.session);
-        if(ctx.session.awaitingTopicSelection === true) {
-            await selectTopic(ctx);
-        } else if(ctx.session.awaitingTopicSelectionForCheckingHomeworks === true) {
-            await selectTopic(ctx);
-        } else if(ctx.session.isEditingTopic === true) {
-            await selectTopic(ctx);
-        }
-    });
+        bot.action(/^select_(\d+)$/, async (ctx) => {
+            try {
+                if (ctx.session) {
+                    if (ctx.session.awaitingTopicSelection === true || ctx.session.awaitingTopicSelectionForCheckingHomeworks === true || ctx.session.isEditingTopic === true) {
+                        await selectTopic(ctx);
+                    } else {
+                        await ctx.reply('Mavzu tanlash jarayonida xatolik yuz berdi. Iltimos, qaytadan urinib ko`ring.');
+                    }
+                } else {
+                    await ctx.reply('Mavzu tanlash jarayonida xatolik yuz berdi. Iltimos, qaytadan urinib ko`ring.');
+                }
+            } catch (error) {
+                console.error('Error selecting topic:', error);
+                await ctx.reply('Mavzu tanlash jarayonida xatolik yuz berdi. Iltimos, qaytadan urinib ko`ring.');
+            }
+        });
 
     bot.action(/^page_(\d+)$/, async (ctx) => {
         const newPage = parseInt(ctx.match[1]);
@@ -124,15 +130,19 @@ const setUpBot = () => {
     });
 
     bot.on('document', async (ctx) => {
-        if (ctx.session.awaitingFileUpload && ctx.session.selectedTopic) {
+        if (ctx.session && ctx.session.awaitingFileUpload && ctx.session.selectedTopic) {
             await uploadHomework(ctx);
+        } else {
+            await ctx.reply('Aniq qo`shimcha ma`lumotlar kiritilmagan yoki noto`g`ri kiritilgan. Iltimos, qaytadan urinib ko`ring.');
         }
     });
     bot.on('photo', async (ctx) => {
-        if (ctx.session.awaitingFileUpload && ctx.session.selectedTopic) {
-          await uploadHomework(ctx);
+        if (ctx.session && ctx.session.awaitingFileUpload && ctx.session.selectedTopic) {
+            await uploadHomework(ctx);
+        } else {
+            await ctx.reply('Aniq qo`shimcha ma`lumotlar kiritilmagan yoki noto`g`ri kiritilgan. Iltimos, qaytadan urinib ko`ring.');
         }
-      });
+    });
     bot.action('upload_homework', async (ctx) => {
         if (ctx.session.awaitingFileUpload && ctx.session.selectedTopic) {
           await ctx.reply('Iltimos, vazifangizni yuklang (PDF, DOC yoki rasm faylini jo\'nating):');
@@ -142,14 +152,21 @@ const setUpBot = () => {
         }
       });
       bot.action('edit_topic', async (ctx) => {
-        const selectedTopic = ctx.session.selectedTopicForEditing;
-        if (ctx.session.isEditingTopic && ctx.session.selectedTopicForEditing) {
-            ctx.session = { isAdminEditingTopic: true }
-            ctx.session = {topicId: selectedTopic.topicId};
-            await ctx.reply("Mavzuni tahrirlashingiz mumkin. Iltimos, yangi mavzu nomini kiriting!");
+        try {
+            const selectedTopic = ctx.session.selectedTopicForEditing;
+            if (ctx.session.isEditingTopic && selectedTopic) {
+                ctx.session.isAdminEditingTopic = true;
+                ctx.session.topicId = selectedTopic.topicId;
+                await ctx.reply("Mavzuni tahrirlashingiz mumkin. Iltimos, yangi mavzu nomini kiriting!");
+            } else {
+                await ctx.reply('Mavzu tanlash jarayonida xatolik yuz berdi. Iltimos, qaytadan urinib ko`ring.');
+            }
+        } catch (error) {
+            console.error('Error editing topic:', error);
+            await ctx.reply('Mavzu tahrir qilishda xatolik yuz berdi. Iltimos, qaytadan urinib ko`ring.');
         }
-        console.log(ctx.session);
-      });
+    });
+    
 
     bot.action('select_group', async (ctx) => {
         const selectedTopic = ctx.session.selectedTopic;
