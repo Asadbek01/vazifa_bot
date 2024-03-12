@@ -2,7 +2,7 @@ const { Telegraf, session } = require('telegraf');
 const { start, startRegistration, handleGroupNumber, checkGroup,
     addTheme, handleTopic, displayTopics, selectTopic, uploadHomework, restart, checkGroups, getStudentsHomeworksByTopicAndGroup,
     displayHomeworksForTopicAndGroup, handleEditTopicTitle} = require('./controllers/commands.js');
-// const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+// const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN_DEV);
 const bot  = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 const { CMD_TEXT } = require('./config/consts.js');
 const User = require('./models/user.js');
@@ -73,7 +73,7 @@ const setUpBot = () => {
         } else if (ctx.session.isAddingTheme === true) {
             await handleTopic(ctx);
         } else if (ctx.session.addNewAdministrator) {
-            const userIdToUpgrade = ctx.message.text.trim();
+            const userIdToUpgrade = parseInt(ctx.message.text.trim());
             await addNewAdministrator(ctx, userIdToUpgrade);
             ctx.session.addNewAdministrator = false;
         } else if (ctx.session.topicId) {
@@ -87,18 +87,19 @@ const setUpBot = () => {
     
 
     async function addNewAdministrator(ctx, userIdToUpgrade) {
-        const user = await User.find({});
-       // we should check if user exists 
-        if (!user.find((user) => user.userId === userIdToUpgrade)) {
+        const newAdminuser = await User.findOne({userId: userIdToUpgrade});
+        const user = await User.findOne({ userId: ctx.from.id });
+        if (newAdminuser.userId != userIdToUpgrade) {
+            console.log(newAdminuser, "user");
             await ctx.reply('Foydalanuvchi mavjud emas.');
             return;
-        }else if(!user.isAdmin) {
+        }else if(!user.isAdmin){ 
             await ctx.reply('Sizda admin qo\'shish huquqi mavjud emas.');
             return;
         }
 
-        user.isAdmin = true;
-        await user.save();
+        newAdminuser.isAdmin = true;
+        await newAdminuser.save();
     
         await ctx.reply(`${userIdToUpgrade} ID li foydalanuvchi endi admin.`);
     }
