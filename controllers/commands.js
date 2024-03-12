@@ -334,7 +334,7 @@ async function checkGroups(ctx) {
         // For each group, count the number of students
         for (const groupNumber of groupNumbers) {
             const studentCount = await User.countDocuments({ groupNumber: groupNumber });
-            messageText += `Group -${groupNumber}: ------------ Bola soni - ${studentCount}\n`;
+            messageText += `Guruh -${groupNumber}: ------------ Bola soni - ${studentCount}\n`;
         }
 
         // Send the compiled list to the user
@@ -349,7 +349,7 @@ async function getStudentsHomeworksByTopicAndGroup(ctx) {
      ctx.session = { awaitingTopicSelectionForCheckingHomeworks: true };
     const message = 'Uyga vazifalarni mavzu bilan olish uchun👇';
     const topicSelectionButton = Markup.inlineKeyboard([
-        Markup.button.callback('Mavzularr', 'display_topics')
+        Markup.button.callback('Mavzular', 'display_topics')
     ]);
     await ctx.reply(message, topicSelectionButton);
 
@@ -358,6 +358,7 @@ async function getStudentsHomeworksByTopicAndGroup(ctx) {
 
 async function displayHomeworksForTopicAndGroup(ctx, topicTitle, groupNumber) {
     const chatId = ctx.chat.id;
+    console.log(chatId);
     try {
         const homeworks = await Submissions.find({ topicTitle: topicTitle, groupNumber: groupNumber });
 
@@ -367,7 +368,24 @@ async function displayHomeworksForTopicAndGroup(ctx, topicTitle, groupNumber) {
         }
 
         homeworks.forEach(submission => {
-            const caption = `Uyga vazifa: ${submission.topicTitle} guruh nomer: ${submission.groupNumber}`;
+
+const submittedAt = new Date(submission.submittedAt);
+
+// Format the date
+const day = submittedAt.getDate().toString().padStart(2, '0');
+const month = (submittedAt.getMonth() + 1).toString().padStart(2, '0'); // +1 because months are 0-indexed
+const year = submittedAt.getFullYear();
+const hours = submittedAt.getHours().toString().padStart(2, '0');
+const minutes = submittedAt.getMinutes().toString().padStart(2, '0');
+
+// Construct the formatted date string
+const formattedDate = `${day}.${month}.${year} | ${hours}:${minutes}`;
+            const caption = 
+            `
+ Mavzu: ${submission.topicTitle}
+Ismi: ${submission.student}
+Guruh nomer: ${submission.groupNumber}
+Vaqti: ${formattedDate}`
             if (submission.fileName && (submission.fileName.endsWith('.jpg') || submission.fileName.endsWith('.png'))) {
                 ctx.telegram.sendPhoto(chatId, submission.fileId, { caption });
             } else {

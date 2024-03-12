@@ -172,12 +172,12 @@ const setUpBot = () => {
     
         let messageText = 'Groupni tanlang:\n';
         pageGroups.forEach((number, index) => {
-            messageText += `${index + 1}. Group ${number}\n`;
+            messageText += `${index + 1}. Guruh ${number}\n`;
         });
     
         // Generate buttons for each group number on the current page
         const groupButtons = pageGroups.map(number =>
-            Markup.button.callback(`Group ${number}`, `choose_group_${number}`)
+            Markup.button.callback(`${number}`, `choose_group_${number}`)
         );
     
         // Pagination buttons if needed
@@ -225,12 +225,12 @@ const setUpBot = () => {
     
         let messageText = 'Groupni tanlang:\n';
         pageGroups.forEach((number, index) => {
-            messageText += `${index + 1 + page * ITEMS_PER_PAGE}. Group ${number}\n`;
+            messageText += `${index + 1 + page * ITEMS_PER_PAGE}. Guruh ${number}\n`;
         });
     
         // Generate buttons for each group number on the current page
         const groupButtons = pageGroups.map(number =>
-            Markup.button.callback(`Group ${number}`, `choose_group_${number}`)
+            Markup.button.callback(`${number}`, `choose_group_${number}`)
         );
     
         const paginationButtons = [];
