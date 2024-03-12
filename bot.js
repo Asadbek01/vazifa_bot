@@ -2,7 +2,8 @@ const { Telegraf, session } = require('telegraf');
 const { start, startRegistration, handleGroupNumber, checkGroup,
     addTheme, handleTopic, displayTopics, selectTopic, uploadHomework, restart, checkGroups, getStudentsHomeworksByTopicAndGroup,
     displayHomeworksForTopicAndGroup, handleEditTopicTitle} = require('./controllers/commands.js');
-const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+// const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+const bot  = new Telegraf(process.env.TELEGRAM_BOT_TOKEN_DEV);
 const { CMD_TEXT } = require('./config/consts.js');
 const User = require('./models/user.js');
 const Topics = require('./models/topics.js');
@@ -209,6 +210,7 @@ const setUpBot = () => {
         const inlineKeyboard = Markup.inlineKeyboard([...groupButtons, ...paginationButtons]);
     
         await ctx.reply(messageText, inlineKeyboard);
+        await ctx.answerCbQuery();
     });
     
     bot.action(/^choose_group_(\d+)$/, async (ctx) => {
@@ -223,6 +225,7 @@ const setUpBot = () => {
     
         // Assuming you have a function to fetch and display homeworks for the selected topic and group
         await displayHomeworksForTopicAndGroup(ctx, selectedTopic, groupNumber);
+        await ctx.answerCbQuery();
     });
 
     

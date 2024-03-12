@@ -176,8 +176,7 @@ const getTopics = async () => {
 const ITEMS_PER_PAGE = 10;
 const CLOSE_COMMAND = 'close';
 
-async function displayTopics (ctx, currentPage = 0) {
-    
+async function displayTopics(ctx, currentPage = 0) {
     try {
         const topics = await Topics.find({});
         const pageCount = Math.ceil(topics.length / ITEMS_PER_PAGE);
@@ -185,36 +184,30 @@ async function displayTopics (ctx, currentPage = 0) {
             currentPage * ITEMS_PER_PAGE,
             (currentPage + 1) * ITEMS_PER_PAGE
         );
+        
         let messageText = 'Mavzu tanlang:\n';
         pageTopics.forEach((topic, index) => {
             const itemNumber = index + 1 + currentPage * ITEMS_PER_PAGE;
             messageText += `${itemNumber}. ${topic.title}\n`;
         });
-        
-        await ctx.reply(messageText);
-        
+
         let keyboardInline = pageTopics.map((_, index) => {
             const buttonNumber = index + 1 + currentPage * ITEMS_PER_PAGE;
             return Markup.button.callback(`${buttonNumber}`, `select_${buttonNumber}`);
         });
-        
+
         keyboardInline = chunkArray(keyboardInline, 5);
+
         const paginationButtons = [];
         if (currentPage > 0) {
             paginationButtons.push(Markup.button.callback('⬅️ Prev', `page_${currentPage - 1}`));
-        } else {
-            paginationButtons.push(Markup.button.callback(' ', 'no_action'));
         }
-        paginationButtons.push(Markup.button.callback('❌', CLOSE_COMMAND));
-        
         if (currentPage < pageCount - 1) {
             paginationButtons.push(Markup.button.callback('Next ➡️', `page_${currentPage + 1}`));
-        } else {
-            paginationButtons.push(Markup.button.callback(' ', 'no_action'));
         }
-        
+
         keyboardInline.push(paginationButtons);
-       await ctx.reply('───────────────', Markup.inlineKeyboard(keyboardInline));
+        await ctx.reply(messageText, Markup.inlineKeyboard(keyboardInline));
 
     } catch (error) {
         console.error('Error displaying topics with numbers:', error);
@@ -358,7 +351,6 @@ async function getStudentsHomeworksByTopicAndGroup(ctx) {
 
 async function displayHomeworksForTopicAndGroup(ctx, topicTitle, groupNumber) {
     const chatId = ctx.chat.id;
-    console.log(chatId);
     try {
         const homeworks = await Submissions.find({ topicTitle: topicTitle, groupNumber: groupNumber });
 
@@ -367,36 +359,33 @@ async function displayHomeworksForTopicAndGroup(ctx, topicTitle, groupNumber) {
             return;
         }
 
-        homeworks.forEach(submission => {
-
-const submittedAt = new Date(submission.submittedAt);
-
-// Format the date
-const day = submittedAt.getDate().toString().padStart(2, '0');
-const month = (submittedAt.getMonth() + 1).toString().padStart(2, '0'); // +1 because months are 0-indexed
-const year = submittedAt.getFullYear();
-const hours = submittedAt.getHours().toString().padStart(2, '0');
-const minutes = submittedAt.getMinutes().toString().padStart(2, '0');
-
-// Construct the formatted date string
-const formattedDate = `${day}.${month}.${year} | ${hours}:${minutes}`;
-            const caption = 
-            `
- Mavzu: ${submission.topicTitle}
+        for (const submission of homeworks) {
+            const submittedAt = new Date(submission.submittedAt);
+            const formattedDate = `${submittedAt.getDate().toString().padStart(2, '0')}.${(submittedAt.getMonth() + 1).toString().padStart(2, '0')}.${submittedAt.getFullYear()} | ${submittedAt.getHours().toString().padStart(2, '0')}:${submittedAt.getMinutes().toString().padStart(2, '0')}`;
+            const caption = `
+Mavzu: ${submission.topicTitle}
 Ismi: ${submission.student}
 Guruh nomer: ${submission.groupNumber}
-Vaqti: ${formattedDate}`
-            if (submission.fileName && (submission.fileName.endsWith('.jpg') || submission.fileName.endsWith('.png'))) {
-                ctx.telegram.sendPhoto(chatId, submission.fileId, { caption });
-            } else {
-                ctx.telegram.sendDocument(chatId, submission.fileId, { caption });
+Vaqti: ${formattedDate}`;
+
+            try {
+                if (submission.fileName && (submission.fileName.endsWith('.jpg') || submission.fileName.endsWith('.png'))) {
+                    await ctx.telegram.sendPhoto(chatId, submission.fileId, { caption });
+                } else {
+                    await ctx.telegram.sendDocument(chatId, submission.fileId, { caption });
+                }
+            } catch (sendError) {
+                console.error('Error sending homework submission:', sendError);
+                await ctx.reply(`Uzr, faylni yuborishda xatolik yuz berdi. ${submission.student}ning uyga vazifasi yuborilmadi.`);
+                break;
             }
-        });
+        }
     } catch (error) {
         console.error('Error retrieving homework submissions:', error);
         await ctx.reply('An error occurred while fetching the homework submissions.');
     }
 }
+
 
 
 
