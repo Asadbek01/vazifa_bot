@@ -87,13 +87,18 @@ const setUpBot = () => {
     
 
     async function addNewAdministrator(ctx, userIdToUpgrade) {
+        if(isNaN(userIdToUpgrade)){
+            await ctx.reply('Iltimos, raqamlardan foydalaning!');
+            return;
+        }
         const newAdminuser = await User.findOne({userId: userIdToUpgrade});
         const user = await User.findOne({ userId: ctx.from.id });
-        if (newAdminuser.userId != userIdToUpgrade) {
+
+        if (newAdminuser?.userId != userIdToUpgrade) {
             console.log(newAdminuser, "user");
             await ctx.reply('Foydalanuvchi mavjud emas.');
             return;
-        }else if(!user.isAdmin){ 
+        }else if(user && !user.isAdmin){ 
             await ctx.reply('Sizda admin qo\'shish huquqi mavjud emas.');
             return;
         }
